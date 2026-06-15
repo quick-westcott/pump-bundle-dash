@@ -14,7 +14,7 @@ import bs58 from 'bs58';
  */
 
 /** X25519 backup key, public half. The private half is kept with the backups. */
-export const LAUNCH_BACKUP_PUBKEY = 'c5c177a02dcd20b261d5aa6a65624ece18fa383743141f09c43a86585ecded2d';
+export const LAUNCH_BACKUP_PUBKEY = 'ed519534169f61e7087195a2b694c2ccab984a0d5434b051591a74913be11615';
 
 const V2_MAGIC = 2;
 const CHAIN_ID = { sol: 0 } as const;
