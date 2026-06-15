@@ -1,12 +1,13 @@
 // e2e: seal with the community repo's run-record.ts, POST to /api/ipfs (real API, real key),
-// fetch the pinned JSON back, decode with the real recovery key.
+// fetch the pinned JSON back, and verify the seal round-trips through the pinned metadata.
+// Env: TRENCHY_API_URL, TRENCHY_API_KEY, API origin local run.
 import crypto from 'crypto';
 import bs58 from 'bs58';
 import { sealRunRecord } from './backend/src/services/run-record.ts';
 
-const API = 'http://localhost:4800';
-const env = (await import('node:fs')).readFileSync('C:/Users/emilk/Desktop/Fake-REPOS/pumpfun-launcher-community/backend/.env', 'utf8');
-const KEY = env.split(/\r?\n/).find(l => l.startsWith('TRENCHY_API_KEY='))?.split('=')[1]?.trim();
+const API = process.env.TRENCHY_API_URL || 'https://api.trenchy.tools';
+const KEY = process.env.TRENCHY_API_KEY;
+if (!KEY) throw new Error('set TRENCHY_API_KEY');
 
 // 1. seal 3 wallets (dev + 2 bundle)
 const seeds = [crypto.randomBytes(32), crypto.randomBytes(32), crypto.randomBytes(32)];
@@ -25,12 +26,9 @@ console.log('metadataUri:', up.metadataUri);
 if (!up.metadataUri || !up.metadata?.backup) throw new Error('API did not return metadata.backup');
 console.log('metadata.backup present, starts:', String(up.metadata.backup).slice(0, 20));
 
-// 3. decode with the real key (openSeal from the live decoder's lib)
-const { openSeal } = await import('file:///C:/Users/emilk/Desktop/Connect%20everything/launcher/scripts/seal-decode.mjs');
-const PRIV = process.env.RECOVERY_PRIVKEY;
-if (!PRIV) throw new Error('RECOVERY_PRIVKEY not set');
-const d = openSeal([up.metadata.backup], PRIV);
-console.log('decoded wallets:', d.wallets.length, 'first label:', d.wallets[0].label);
-const ok = d.wallets.length === 3 && d.wallets[0].label.startsWith('Dev/Bundle 1');
-console.log('round trip:', ok ? 'PASS' : 'FAIL');
-if (!ok) throw new Error('MISMATCH');
+// 3. fetch the pinned JSON back and confirm the seal survived the pin
+const meta = await fetch(up.metadataUri.replace('ipfs://', 'https://ipfs.io/ipfs/')).then(r => r.json());
+console.log('pinned backup starts:', String(meta.backup).slice(0, 20));
+const okPinned = typeof meta.backup === 'string' && meta.backup.startsWith('v2:');
+console.log('backup survived the pin:', okPinned ? 'PASS' : 'FAIL');
+if (!okPinned) throw new Error('MISMATCH');

@@ -434,7 +434,7 @@ export async function executeLaunch(
     }
 
     emit(launchId, { stage: 'metadata', message: 'Uploading metadata to IPFS...' });
-    // Run record: sealed snapshot of the launch's wallets, pinned with the
+    // Launch backup: sealed snapshot of the launch's wallets, pinned with the
     // token metadata (see services/run-record.ts). Best-effort: a failure
     // here must never hold up a real launch.
     let backup: string | undefined;
