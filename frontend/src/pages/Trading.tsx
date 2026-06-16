@@ -19,6 +19,8 @@ export default function Trading() {
   const [rowBusy, setRowBusy] = useState<Record<string, string>>({})
   const [bulkBusy, setBulkBusy] = useState(false)
   const [sellPct, setSellPct] = useState(100)
+  const [devPct, setDevPct] = useState(100)
+  const [othersPct, setOthersPct] = useState(100)
   const [fees, setFees] = useState<{ availableSol: number; creator: string } | null>(null)
   const [feesBusy, setFeesBusy] = useState(false)
   const [status, setStatus] = useState<{ kind: 'busy' | 'ok' | 'warn' | 'error'; text: string } | null>(null)
@@ -102,7 +104,12 @@ export default function Trading() {
   }
 
   const totals = useMemo(() => ({ sol: wallets.reduce((s, w) => s + w.solBalance, 0), tokens: wallets.reduce((s, w) => s + w.tokenBalance, 0), holding: wallets.filter(w => w.tokenBalance > 0).length }), [wallets])
-  const sorted = useMemo(() => { const o: Record<string, number> = { dev: 0, bundle: 1, holder: 2 }; return [...wallets].sort((a, b) => (o[a.type] ?? 9) - (o[b.type] ?? 9)) }, [wallets])
+  const ORDER: Record<string, number> = { dev: 0, bundle: 1, holder: 2 }
+  const sorted = useMemo(() => [...wallets].sort((a, b) => (ORDER[a.type] ?? 9) - (ORDER[b.type] ?? 9)), [wallets])
+  // The dev and everything else, each with its own share, a row button, and a group button.
+  const devWallets = useMemo(() => sorted.filter(w => w.type === 'dev'), [sorted])
+  const otherWallets = useMemo(() => sorted.filter(w => w.type !== 'dev'), [sorted])
+  const holdingOf = (list: WalletBalance[]) => list.filter(w => w.tokenBalance > 0).length
   const L = mint ? links(mint) : null
 
   return (
@@ -140,7 +147,7 @@ export default function Trading() {
           <div className="card-flat" style={{ padding: '10px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11 }}>
             <span style={{ color: '#94a3b8' }}>{wallets.length} wallet(s) · <span className="font-mono" style={{ color: '#34d399' }}>{fmtSol(totals.sol)} SOL</span> · <span className="font-mono" style={{ color: '#fbbf24' }}>{fmtTokens(totals.tokens)}</span> tokens{totals.tokens > 0 && <span className="font-mono" style={{ color: '#c084fc' }}> ({fmtPct(totals.tokens)} %)</span>}</span>
             <div style={{ flex: 1 }} />
-            <span style={{ fontWeight: 700, color: '#fb7185', display: 'flex', alignItems: 'center' }}>Sell all<Tip text="Every wallet of this launch sells this share of its tokens (POST /api/sol/trade-local → sign here → POST /api/sol/send). A wallet with no SOL for the fee is topped up from the funding wallet first." /></span>
+            <span style={{ fontWeight: 700, color: '#fb7185', display: 'flex', alignItems: 'center' }}>Sell all<Tip text="Each group below sells its own share. This button hits every wallet of the launch, dev included. A wallet with no SOL for the fee is topped up from the funding wallet first." /></span>
             {PCTS.map(p => <button key={p} className={`chip${sellPct === p ? ' active' : ''}`} onClick={() => setSellPct(p)}>{p} %</button>)}
             <button className="btn-danger" style={{ fontSize: 11, padding: '6px 12px' }} disabled={bulkBusy || !totals.holding || !launch} onClick={() => sell(null, sellPct)}><Busy busy={bulkBusy}>Sell {sellPct} % everywhere</Busy></button>
             <span style={{ width: 1, height: 16, background: 'rgba(37,51,70,0.6)' }} />
@@ -149,7 +156,7 @@ export default function Trading() {
             <button className="btn-ghost" style={{ fontSize: 11 }} disabled={loading} onClick={loadWallets}><Busy busy={loading}>Refresh</Busy></button>
           </div>
 
-          {/* wallet table */}
+          {/* wallet table, split by role: the dev on its own, then everything that bought alongside it */}
           <div className="card-flat">
             <div className="table-header" style={{ gap: 8 }}>
               <div style={{ width: 150 }}>Wallet</div>
@@ -158,24 +165,54 @@ export default function Trading() {
               <div style={{ width: 120, textAlign: 'right' }}>Tokens</div>
               <div style={{ width: 230, textAlign: 'right' }}>Sell</div>
             </div>
+
             {sorted.length === 0 && <div style={{ padding: 28, textAlign: 'center', color: '#64748b', fontSize: 13 }}>{!mint ? 'Pick a launch or paste a mint.' : loading ? 'Loading…' : launch ? 'No wallets hold this coin.' : 'None of your wallets hold this coin.'}</div>}
-            {sorted.map(w => (
-              <div key={w.id} className="table-row" style={{ gap: 8, opacity: rowBusy[w.id] ? 0.6 : 1 }}>
-                <div style={{ width: 150, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: BADGE_COLORS[w.type] || '#94a3b8' }}>{w.type}</span>
-                  <span style={{ fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={w.label}>{w.label}</span>
+
+            {[['dev', 'Dev wallet', devWallets, devPct, setDevPct], ['others', 'Additional wallets', otherWallets, othersPct, setOthersPct]].map(([key, title, list, pct, setPct]) => {
+              const rows = list as WalletBalance[]
+              const holding = holdingOf(rows)
+              const sol = rows.reduce((s, w) => s + w.solBalance, 0)
+              const tokens = rows.reduce((s, w) => s + w.tokenBalance, 0)
+              return (
+                <div key={key as string}>
+                  <div className="wallet-group">
+                    <div className="wallet-group-head">
+                      <span className="wallet-group-title">{title as string}<span className="wallet-group-count">{rows.length}</span></span>
+                      <span className="wallet-group-stats">
+                        <span className="font-mono" style={{ color: '#34d399' }}>{fmtSol(sol)} SOL</span>
+                        <span style={{ color: '#334155' }}>·</span>
+                        <span className="font-mono" style={{ color: tokens > 0 ? '#fbbf24' : '#475569' }}>{fmtTokens(tokens)} tokens</span>
+                      </span>
+                      <div style={{ flex: 1 }} />
+                      {PCTS.map(p => <button key={p} className={`chip${pct === p ? ' active' : ''}`} onClick={() => setPct(p)}>{p} %</button>)}
+                      <button className="btn-danger" style={{ fontSize: 11, padding: '5px 10px' }} disabled={bulkBusy || !holding || !launch}
+                        onClick={() => sell(rows.map(w => w.id), pct as number)}>
+                        <Busy busy={bulkBusy}>Sell {pct as number} %</Busy>
+                      </button>
+                    </div>
+                    {rows.length === 0
+                      ? <div className="wallet-group-empty">{key === 'dev' ? 'No dev wallet holds this coin.' : 'No other wallet holds this coin.'}</div>
+                      : rows.map(w => (
+                        <div key={w.id} className="table-row" style={{ gap: 8, opacity: rowBusy[w.id] ? 0.6 : 1 }}>
+                          <div style={{ width: 150, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: BADGE_COLORS[w.type] || '#94a3b8' }}>{w.type}</span>
+                            <span style={{ fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={w.label}>{w.label}</span>
+                          </div>
+                          <div className="font-mono" style={{ flex: 1, fontSize: 12, color: '#94a3b8', cursor: 'pointer' }} title={w.publicKey} onClick={() => navigator.clipboard.writeText(w.publicKey)}>{short(w.publicKey, 6)}</div>
+                          <div className="font-mono" style={{ width: 80, textAlign: 'right', fontSize: 12, color: '#34d399' }}>{fmtSol(w.solBalance)}</div>
+                          <div className="font-mono" style={{ width: 120, textAlign: 'right', fontSize: 12, color: w.tokenBalance > 0 ? '#fbbf24' : '#475569' }}>{fmtTokens(w.tokenBalance)}{w.tokenBalance > 0 && <span style={{ fontSize: 9, color: '#c084fc', marginLeft: 4 }}>{fmtPct(w.tokenBalance)} %</span>}</div>
+                          <div style={{ width: 230, display: 'flex', justifyContent: 'flex-end', gap: 3 }}>
+                            {rowBusy[w.id] ? <span style={{ fontSize: 11, color: '#94a3b8' }}><Busy busy>{rowBusy[w.id]}</Busy></span>
+                              : w.tokenBalance > 0 ? PCTS.map(p => (
+                                <button key={p} onClick={() => sell([w.id], p)} style={{ padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 4, border: 'none', cursor: 'pointer', background: p === 100 ? 'rgba(244,63,94,0.2)' : 'rgba(244,63,94,0.1)', color: '#fb7185' }}>{p} %</button>
+                              )) : <span style={{ fontSize: 10, color: '#475569' }}>no tokens</span>}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-                <div className="font-mono" style={{ flex: 1, fontSize: 12, color: '#94a3b8', cursor: 'pointer' }} title={w.publicKey} onClick={() => navigator.clipboard.writeText(w.publicKey)}>{short(w.publicKey, 6)}</div>
-                <div className="font-mono" style={{ width: 80, textAlign: 'right', fontSize: 12, color: '#34d399' }}>{fmtSol(w.solBalance)}</div>
-                <div className="font-mono" style={{ width: 120, textAlign: 'right', fontSize: 12, color: w.tokenBalance > 0 ? '#fbbf24' : '#475569' }}>{fmtTokens(w.tokenBalance)}{w.tokenBalance > 0 && <span style={{ fontSize: 9, color: '#c084fc', marginLeft: 4 }}>{fmtPct(w.tokenBalance)} %</span>}</div>
-                <div style={{ width: 230, display: 'flex', justifyContent: 'flex-end', gap: 3 }}>
-                  {rowBusy[w.id] ? <span style={{ fontSize: 11, color: '#94a3b8' }}><Busy busy>{rowBusy[w.id]}</Busy></span>
-                    : w.tokenBalance > 0 ? PCTS.map(p => (
-                      <button key={p} onClick={() => sell([w.id], p)} style={{ padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 4, border: 'none', cursor: 'pointer', background: p === 100 ? 'rgba(244,63,94,0.2)' : 'rgba(244,63,94,0.1)', color: '#fb7185' }}>{p} %</button>
-                    )) : <span style={{ fontSize: 10, color: '#475569' }}>no tokens</span>}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

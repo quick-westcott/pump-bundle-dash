@@ -395,6 +395,41 @@ textarea.input {
 }
 .table-row:hover { background: rgba(20, 184, 166, 0.03); }
 
+/* ── Wallet groups (Trading) ──────────────── */
+/* The dev is its own section with its own sell-all, everything that bought
+   alongside it is another. Each head carries the group's own totals so the
+   two cannot be confused on a fast read. */
+.wallet-group + .wallet-group { border-top: 1px solid rgba(37, 51, 70, 0.7); }
+.wallet-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+  background: rgba(17, 25, 33, 0.9);
+  border-bottom: 1px solid rgba(37, 51, 70, 0.45);
+}
+.wallet-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+.wallet-group-count {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #16202d;
+  border: 1px solid #253346;
+  color: #64748b;
+  font-size: 9px;
+}
+.wallet-group-stats { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; margin-left: 4px; }
+.wallet-group-empty { padding: 12px; font-size: 11px; color: #475569; }
+
 /* ── Typography ───────────────────────────── */
 
 .page-title { font-size: 22px; font-weight: 700; color: #f8fafc; }
