@@ -53,7 +53,7 @@ export default function Trading() {
 
   const loadFees = useCallback(() => {
     if (!launch?.id) { setFees(null); return }
-    // 404 = this launch's dev wallet is not in the vault (nothing to claim from here): shown as "—"
+    // 404 = this launch's dev wallet is not in the vault (nothing to claim from here): shown as "-"
     axios.get('/api/trading/creator-fees', { params: { launchId: launch.id } }).then(r => setFees(r.data)).catch(() => setFees({ availableSol: -1, creator: '' }))
   }, [launch?.id])
   useEffect(() => { loadFees(); const t = setInterval(loadFees, 30_000); return () => clearInterval(t) }, [loadFees])
@@ -151,7 +151,7 @@ export default function Trading() {
             {PCTS.map(p => <button key={p} className={`chip${sellPct === p ? ' active' : ''}`} onClick={() => setSellPct(p)}>{p} %</button>)}
             <button className="btn-danger" style={{ fontSize: 11, padding: '6px 12px' }} disabled={bulkBusy || !totals.holding || !launch} onClick={() => sell(null, sellPct)}><Busy busy={bulkBusy}>Sell {sellPct} % everywhere</Busy></button>
             <span style={{ width: 1, height: 16, background: 'rgba(37,51,70,0.6)' }} />
-            <span style={{ color: '#94a3b8' }}>Creator fees: <span className="font-mono" style={{ color: fees && fees.availableSol > 0 ? '#34d399' : '#64748b' }}>{fees ? (fees.availableSol < 0 ? '—' : `${fees.availableSol.toFixed(6)} SOL`) : launch ? '…' : '—'}</span></span>
+            <span style={{ color: '#94a3b8' }}>Creator fees: <span className="font-mono" style={{ color: fees && fees.availableSol > 0 ? '#34d399' : '#64748b' }}>{fees ? (fees.availableSol < 0 ? '-' : `${fees.availableSol.toFixed(6)} SOL`) : launch ? '…' : '-'}</span></span>
             <button className="btn-secondary" style={{ fontSize: 11, padding: '6px 12px' }} disabled={feesBusy || !launch || !fees || fees.availableSol <= 0} onClick={claimFees}><Busy busy={feesBusy}>Claim</Busy></button>
             <button className="btn-ghost" style={{ fontSize: 11 }} disabled={loading} onClick={loadWallets}><Busy busy={loading}>Refresh</Busy></button>
           </div>
