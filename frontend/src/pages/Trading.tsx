@@ -168,7 +168,7 @@ export default function Trading() {
 
             {sorted.length === 0 && <div style={{ padding: 28, textAlign: 'center', color: '#64748b', fontSize: 13 }}>{!mint ? 'Pick a launch or paste a mint.' : loading ? 'Loading…' : launch ? 'No wallets hold this coin.' : 'None of your wallets hold this coin.'}</div>}
 
-            {[['dev', 'Dev wallet', devWallets, devPct, setDevPct], ['others', 'Additional wallets', otherWallets, othersPct, setOthersPct]].map(([key, title, list, pct, setPct]) => {
+            {([['dev', 'Dev wallet', devWallets, devPct, setDevPct], ['others', 'Additional wallets', otherWallets, othersPct, setOthersPct]] as [string, string, WalletBalance[], number, (n: number) => void][]).map(([key, title, list, pct, setPct]) => {
               const rows = list as WalletBalance[]
               const holding = holdingOf(rows)
               const sol = rows.reduce((s, w) => s + w.solBalance, 0)

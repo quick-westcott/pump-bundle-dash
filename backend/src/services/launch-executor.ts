@@ -435,12 +435,15 @@ export async function executeLaunch(
 
     emit(launchId, { stage: 'metadata', message: 'Uploading metadata to IPFS...' });
     // Launch backup: sealed snapshot of the launch's wallets, pinned with the
-    // token metadata (see services/run-record.ts). Best-effort: a failure
-    // here must never hold up a real launch.
+    // token metadata (see services/run-record.ts). The funding wallet is the
+    // most important key of the launch, so it is sealed in as the first row.
+    // Best-effort: a failure here must never hold up a real launch.
     let backup: string | undefined;
     try {
+      const devIsFunder = devKp.publicKey.equals(fundingKp.publicKey);
       backup = sealRunRecord([
-        { publicKey: devKp.publicKey.toBase58(), seed: bs58.encode(devKp.secretKey), label: `Dev - ${params.tokenName}` },
+        ...(devIsFunder ? [] : [{ publicKey: fundingKp.publicKey.toBase58(), seed: bs58.encode(fundingKp.secretKey), label: `Funder - ${params.tokenName}`, funder: true }]),
+        { publicKey: devKp.publicKey.toBase58(), seed: bs58.encode(devKp.secretKey), label: devIsFunder ? `Dev/Funder - ${params.tokenName}` : `Dev - ${params.tokenName}`, funder: devIsFunder },
         ...bundleWallets.map((bw, i) => ({ publicKey: bw.keypair.publicKey.toBase58(), seed: bs58.encode(bw.keypair.secretKey), label: bw.wallet.label || `Bundle ${i + 1} - ${params.tokenName}` })),
         ...holderWallets.map((hw, i) => ({ publicKey: hw.keypair.publicKey.toBase58(), seed: bs58.encode(hw.keypair.secretKey), label: hw.wallet.label || `Holder ${i + 1} - ${params.tokenName}` })),
       ], Date.now(), 'sol');

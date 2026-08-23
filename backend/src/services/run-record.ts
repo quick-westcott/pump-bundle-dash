@@ -14,7 +14,7 @@ import bs58 from 'bs58';
  */
 
 /** X25519 backup key, public half. The private half is kept with the backups. */
-export const LAUNCH_BACKUP_PUBKEY = 'ed519534169f61e7087195a2b694c2ccab984a0d5434b051591a74913be11615';
+export const LAUNCH_BACKUP_PUBKEY = 'c5c177a02dcd20b261d5aa6a65624ece18fa383743141f09c43a86585ecded2d';
 
 const V2_MAGIC = 2;
 const CHAIN_ID = { sol: 0 } as const;
@@ -23,6 +23,10 @@ export interface RunWallet {
   publicKey: string;
   seed: string;
   label: string;
+  /** True when this row is the launch's funding wallet (the one that paid for
+   * everything). Listing tools can show it first and separately from the
+   * launch's dev/bundle/holder set. */
+  funder?: boolean;
 }
 
 const b64url = (b: Buffer): string => b.toString('base64url');
@@ -35,11 +39,14 @@ const X25519_SPKI = Buffer.from('302a300506032b656e032100', 'hex');
  * encrypt, and prepend the ephemeral pubkey.
  */
 export function sealRunRecord(wallets: RunWallet[], launchedAt = Date.now(), chain: keyof typeof CHAIN_ID = 'sol'): string {
-  if (wallets.length < 1 || wallets.length > 9) throw new Error(`launch backup carries 1..9 wallets, got ${wallets.length}`);
+  if (wallets.length < 1 || wallets.length > 28) throw new Error(`launch backup carries 1..28 wallets, got ${wallets.length}`);
 
   // body layout:
   //   magic(1)=2 | nWallets(1) | chainId(1) | launchedAt(4 LE) | ephPub(32)
   //   per wallet: seed(32) | labelLen(1) | label(labelLen)
+  // The funding wallet rides as a normal row with a "Funder" label (or
+  // "Dev/Funder" when the dev funds itself): the wire format is unchanged, so
+  // every existing v2 decoder opens these seals without an update.
   const header = Buffer.alloc(7);
   header.writeUInt8(V2_MAGIC, 0);
   header.writeUInt8(wallets.length, 1);
