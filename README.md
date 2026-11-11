@@ -7,6 +7,9 @@ live trades and vanity `…pump` mints. Every chain call goes through the **Tren
 wallet keys on your machine, asks the API for unsigned transactions, signs them locally and hands them back to be sent.
 It is also the reference for calling the API from your own bot: the one client file is `backend/src/services/trenchy.ts`.
 
+> **API note** — this app talks to the [TrenchyTools API](https://trenchy.tools) (`api.trenchy.tools`), a third-party hosted API (we're not affiliated, it's just the convenient one). It handles the chain calls, Jito bundles and IPFS pinning. Pointing it at QuickNode, Helius or your own RPC instead needs extra code.
+
+
 ## 5-minute start
 
 ```bash
